@@ -266,11 +266,11 @@ export function InvestmentCalculatorComponent() {
 
   const saveScreenshot = async () => {
     if (resultRef.current) {
-      const shareButton = resultRef.current.querySelector('#shareButton')
-      const saveButton = resultRef.current.querySelector('#saveButton')
+      const shareButton = resultRef.current.querySelector('#shareButton') as HTMLElement | null
+      const saveButton = resultRef.current.querySelector('#saveButton') as HTMLElement | null
       if (shareButton) shareButton.style.display = 'none'
-      if (saveButton) (saveButton as HTMLElement).style.display = 'none'
-
+      if (saveButton) saveButton.style.display = 'none'
+  
       try {
         const dataUrl = await domToImage.toPng(resultRef.current)
         const link = document.createElement('a')
@@ -282,7 +282,7 @@ export function InvestmentCalculatorComponent() {
         alert('Ocorreu um erro ao gerar a captura de tela. Por favor, tente novamente.')
       } finally {
         if (shareButton) shareButton.style.display = 'flex'
-        if (saveButton) (saveButton as HTMLElement).style.display = 'flex'
+        if (saveButton) saveButton.style.display = 'flex'
       }
     }
   }
