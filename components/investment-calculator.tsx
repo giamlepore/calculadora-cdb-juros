@@ -9,7 +9,7 @@ import { Moon, Sun, BarChart, Table, Share2, Check, Camera } from "lucide-react"
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import * as domtoimage from 'dom-to-image'
+import domToImage from 'dom-to-image'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -269,16 +269,21 @@ export function InvestmentCalculatorComponent() {
       const shareButton = resultRef.current.querySelector('#shareButton')
       const saveButton = resultRef.current.querySelector('#saveButton')
       if (shareButton) shareButton.style.display = 'none'
-      if (saveButton) saveButton.style.display = 'none'
+      if (saveButton) (saveButton as HTMLElement).style.display = 'none'
 
-      const dataUrl = await domtoimage.toPng(resultRef.current)
-      const link = document.createElement('a')
-      link.download = 'investment-result.png'
-      link.href = dataUrl
-      link.click()
-
-      if (shareButton) shareButton.style.display = 'flex'
-      if (saveButton) saveButton.style.display = 'flex'
+      try {
+        const dataUrl = await domToImage.toPng(resultRef.current)
+        const link = document.createElement('a')
+        link.download = 'investment-result.png'
+        link.href = dataUrl
+        link.click()
+      } catch (error) {
+        console.error('Error generating screenshot:', error)
+        alert('Ocorreu um erro ao gerar a captura de tela. Por favor, tente novamente.')
+      } finally {
+        if (shareButton) shareButton.style.display = 'flex'
+        if (saveButton) (saveButton as HTMLElement).style.display = 'flex'
+      }
     }
   }
 
