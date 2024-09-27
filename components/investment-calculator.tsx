@@ -5,28 +5,42 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Moon, Sun, BarChart, Table, Share2 } from "lucide-react"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Moon, Sun, BarChart, Table, Share2, Check } from "lucide-react"
+import { Line } from 'react-chartjs-2'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 export function InvestmentCalculatorComponent() {
   const [investmentType, setInvestmentType] = useState<'compound' | 'cdb'>('compound')
-  const [principal, setPrincipal] = useState<number>(1000)
-  const [rate, setRate] = useState<number>(5)
-  const [time, setTime] = useState<number>(5)
-  const [contribution, setContribution] = useState<number>(100)
-  const [cdbRate, setCdbRate] = useState<number>(100)
+  const [principal, setPrincipal] = useState<number | ''>('')
+  const [rate, setRate] = useState<number | ''>('')
+  const [time, setTime] = useState<number | ''>('')
+  const [contribution, setContribution] = useState<number | ''>('')
+  const [cdbRate, setCdbRate] = useState<number | ''>('')
   const [result, setResult] = useState<number | null>(null)
   const [totalInvested, setTotalInvested] = useState<number | null>(null)
   const [interestGained, setInterestGained] = useState<number | null>(null)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
   const [showChart, setShowChart] = useState<boolean>(false)
-  const [chartData, setChartData] = useState<any[]>([])
+  const [chartData, setChartData] = useState<any>({})
   const [isChartView, setIsChartView] = useState<boolean>(true)
   const [calculationSummary, setCalculationSummary] = useState<string | null>(null)
+  const [filledFields, setFilledFields] = useState<{ [key: string]: boolean }>({})
 
   useEffect(() => {
     document.body.classList.toggle('dark', isDarkMode)
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('type')) {
+      setInvestmentType(params.get('type') as 'compound' | 'cdb')
+      setPrincipal(Number(params.get('principal')) || '')
+      setRate(Number(params.get('rate')) || '')
+      setTime(Number(params.get('time')) || '')
+      setContribution(Number(params.get('contribution')) || '')
+      setCdbRate(Number(params.get('cdbRate')) || '')
+      calculateInvestment()
+    }
   }, [isDarkMode])
 
   const calculateInvestment = () => {
@@ -39,63 +53,81 @@ export function InvestmentCalculatorComponent() {
   }
 
   const calculateCompoundInterest = () => {
-    const r = rate / 100 / 12
-    const n = time * 12
+    const r = Number(rate) / 100 / 12
+    const n = Number(time) * 12
     const compoundInterest =
-      principal * Math.pow(1 + r, n) +
-      contribution * ((Math.pow(1 + r, n) - 1) / r)
-    const totalInvested = principal + (contribution * n)
+      Number(principal) * Math.pow(1 + r, n) +
+      Number(contribution) * ((Math.pow(1 + r, n) - 1) / r)
+    const totalInvested = Number(principal) + (Number(contribution) * n)
     const interestGained = compoundInterest - totalInvested
 
     setResult(parseFloat(compoundInterest.toFixed(2)))
     setTotalInvested(parseFloat(totalInvested.toFixed(2)))
     setInterestGained(parseFloat(interestGained.toFixed(2)))
 
+    const labels = []
     const data = []
     for (let i = 0; i <= n; i++) {
       const amount =
-        principal * Math.pow(1 + r, i) +
-        contribution * ((Math.pow(1 + r, i) - 1) / r)
-      data.push({
-        month: i,
-        amount: parseFloat(amount.toFixed(2))
-      })
+        Number(principal) * Math.pow(1 + r, i) +
+        Number(contribution) * ((Math.pow(1 + r, i) - 1) / r)
+      labels.push(i)
+      data.push(parseFloat(amount.toFixed(2)))
     }
-    setChartData(data)
+    setChartData({
+      labels,
+      datasets: [
+        {
+          label: 'Montante',
+          data,
+          borderColor: 'rgb(75, 192, 192)',
+          tension: 0.1
+        }
+      ]
+    })
   }
 
   const calculateCDB = () => {
-    const cdiRate = rate / 100
-    const cdbYieldRate = (cdiRate * cdbRate) / 100
+    const cdiRate = Number(rate) / 100
+    const cdbYieldRate = (cdiRate * Number(cdbRate)) / 100
     const monthlyRate = Math.pow(1 + cdbYieldRate, 1/12) - 1
-    const n = time * 12
+    const n = Number(time) * 12
     
-    let totalAmount = principal
-    const data = [{ month: 0, amount: principal }]
+    let totalAmount = Number(principal)
+    const labels = [0]
+    const data = [Number(principal)]
     
     for (let i = 1; i <= n; i++) {
-      totalAmount = totalAmount * (1 + monthlyRate) + contribution
-      data.push({
-        month: i,
-        amount: parseFloat(totalAmount.toFixed(2))
-      })
+      totalAmount = totalAmount * (1 + monthlyRate) + Number(contribution)
+      labels.push(i)
+      data.push(parseFloat(totalAmount.toFixed(2)))
     }
 
-    const totalInvested = principal + (contribution * n)
+    const totalInvested = Number(principal) + (Number(contribution) * n)
     const interestGained = totalAmount - totalInvested
 
     setResult(parseFloat(totalAmount.toFixed(2)))
     setTotalInvested(parseFloat(totalInvested.toFixed(2)))
     setInterestGained(parseFloat(interestGained.toFixed(2)))
-    setChartData(data)
+    setChartData({
+      labels,
+      datasets: [
+        {
+          label: 'Montante',
+          data,
+          borderColor: 'rgb(75, 192, 192)',
+          tension: 0.1
+        }
+      ]
+    })
   }
 
   const updateCalculationSummary = () => {
     let summary = `Tipo de Investimento: ${investmentType === 'compound' ? 'Juros Compostos' : 'CDB'}\n`
-    summary += `Capital Inicial: R$ ${principal.toFixed(2)}\n`
+    summary += `Capital Inicial: R$ ${Number(principal).toFixed(2)}\n`
     summary += `Taxa de Juros Anual: ${rate}%\n`
     summary += `Tempo: ${time} anos\n`
-    summary += `Contribuição Mensal: R$ ${contribution.toFixed(2)}\n`
+    summary += `Contribuição Mensal: R$ ${Number(contribution).toFixed(2)}\n`
     if (investmentType === 'cdb') {
       summary += `Percentual do CDI: ${cdbRate}%\n`
     }
@@ -127,6 +159,31 @@ export function InvestmentCalculatorComponent() {
     navigator.clipboard.writeText(url).then(() => {
       alert('Link copiado para a área de transferência!')
     })
+  }
+
+  const handleInputFocus = (field: string) => {
+    setFilledFields(prev => ({ ...prev, [field]: true }))
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    const numValue = value === '' ? '' : Number(value)
+    switch (field) {
+      case 'principal':
+        setPrincipal(numValue)
+        break
+      case 'rate':
+        setRate(numValue)
+        break
+      case 'time':
+        setTime(numValue)
+        break
+      case 'contribution':
+        setContribution(numValue)
+        break
+      case 'cdbRate':
+        setCdbRate(numValue)
+        break
+    }
   }
 
   return (
@@ -161,49 +218,65 @@ export function InvestmentCalculatorComponent() {
                     <Label htmlFor="principal" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Capital Inicial (R$)
                     </Label>
-                    <Input
-                      id="principal"
-                      type="number"
-                      value={principal}
-                      onChange={(e) => setPrincipal(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="principal"
+                        type="number"
+                        value={principal}
+                        onChange={(e) => handleInputChange('principal', e.target.value)}
+                        onFocus={() => handleInputFocus('principal')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.principal && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="rate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Taxa de Juros Anual (%)
                     </Label>
-                    <Input
-                      id="rate"
-                      type="number"
-                      value={rate}
-                      onChange={(e) => setRate(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="rate"
+                        type="number"
+                        value={rate}
+                        onChange={(e) => handleInputChange('rate', e.target.value)}
+                        onFocus={() => handleInputFocus('rate')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.rate && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="time" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Tempo (anos)
                     </Label>
-                    <Input
-                      id="time"
-                      type="number"
-                      value={time}
-                      onChange={(e) => setTime(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="time"
+                        type="number"
+                        value={time}
+                        onChange={(e) => handleInputChange('time', e.target.value)}
+                        onFocus={() => handleInputFocus('time')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.time && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="contribution" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Contribuição Mensal (R$)
                     </Label>
-                    <Input
-                      id="contribution"
-                      type="number"
-                      value={contribution}
-                      onChange={(e) => setContribution(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="contribution"
+                        type="number"
+                        value={contribution}
+                        onChange={(e) => handleInputChange('contribution', e.target.value)}
+                        onFocus={() => handleInputFocus('contribution')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.contribution && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -213,61 +286,81 @@ export function InvestmentCalculatorComponent() {
                     <Label htmlFor="principal" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Capital Inicial (R$)
                     </Label>
-                    <Input
-                      id="principal"
-                      type="number"
-                      value={principal}
-                      onChange={(e) => setPrincipal(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="principal"
+                        type="number"
+                        value={principal}
+                        onChange={(e) => handleInputChange('principal', e.target.value)}
+                        onFocus={() => handleInputFocus('principal')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.principal && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="rate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Taxa CDI Anual (%)
                     </Label>
-                    <Input
-                      id="rate"
-                      type="number"
-                      value={rate}
-                      onChange={(e) => setRate(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="rate"
+                        type="number"
+                        value={rate}
+                        onChange={(e) => handleInputChange('rate', e.target.value)}
+                        onFocus={() => handleInputFocus('rate')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.rate && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="cdbRate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Percentual do CDI (%)
                     </Label>
-                    <Input
-                      id="cdbRate"
-                      type="number"
-                      value={cdbRate}
-                      onChange={(e) => setCdbRate(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="cdbRate"
+                        type="number"
+                        value={cdbRate}
+                        onChange={(e) => handleInputChange('cdbRate', e.target.value)}
+                        onFocus={() => handleInputFocus('cdbRate')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.cdbRate && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="time" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Tempo (anos)
                     </Label>
-                    <Input
-                      id="time"
-                      type="number"
-                      value={time}
-                      onChange={(e) => setTime(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="time"
+                        type="number"
+                        value={time}
+                        onChange={(e) => handleInputChange('time', e.target.value)}
+                        onFocus={() => handleInputFocus('time')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.time && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="contribution" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Contribuição Mensal (R$)
                     </Label>
-                    <Input
-                      id="contribution"
-                      type="number"
-                      value={contribution}
-                      onChange={(e) => setContribution(Number(e.target.value))}
-                      className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="contribution"
+                        type="number"
+                        value={contribution}
+                        onChange={(e) => handleInputChange('contribution', e.target.value)}
+                        onFocus={() => handleInputFocus('contribution')}
+                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 pr-8"
+                      />
+                      {filledFields.contribution && <Check className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-500" size={16} />}
+                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -332,15 +425,7 @@ export function InvestmentCalculatorComponent() {
                 </div>
                 {isChartView ? (
                   <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="amount" stroke="#8884d8" />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <Line data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -352,11 +437,11 @@ export function InvestmentCalculatorComponent() {
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                        {chartData.map((data, index) => (
+                        {chartData.labels?.map((label: string, index: number) => (
                           <tr key={index}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{data.month}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{label}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                              {data.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {chartData.datasets[0].data[index].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </tr>
                         ))}
