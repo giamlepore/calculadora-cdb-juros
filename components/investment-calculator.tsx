@@ -14,7 +14,7 @@ import domToImage from 'dom-to-image'
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 export function InvestmentCalculatorComponent() {
-  const [investmentType, setInvestmentType] = useState<'compound' | 'cdb'>('compound')
+  const [investmentType, setInvestmentType] = useState<'compound' | 'cdb'>('cdb')
   const [principal, setPrincipal] = useState<string>('')
   const [rate, setRate] = useState<number | ''>('')
   const [time, setTime] = useState<number | ''>('')
@@ -23,6 +23,10 @@ export function InvestmentCalculatorComponent() {
   const [result, setResult] = useState<number | null>(null)
   const [totalInvested, setTotalInvested] = useState<number | null>(null)
   const [interestGained, setInterestGained] = useState<number | null>(null)
+  const [grossInterest, setGrossInterest] = useState<number | null>(null)
+  const [netInterest, setNetInterest] = useState<number | null>(null)
+  const [tax, setTax] = useState<number | null>(null)
+  const [taxRate, setTaxRate] = useState<number>(0)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true)
   const [showChart, setShowChart] = useState<boolean>(false)
   const [chartData, setChartData] = useState<any>({})
@@ -30,6 +34,7 @@ export function InvestmentCalculatorComponent() {
   const [calculationSummary, setCalculationSummary] = useState<string | null>(null)
   const [filledFields, setFilledFields] = useState<{ [key: string]: boolean }>({})
   const [comparisonData, setComparisonData] = useState<any>(null)
+  const [hasCalculated, setHasCalculated] = useState<boolean>(false)
   const resultRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<HTMLDivElement>(null)
 
@@ -64,6 +69,8 @@ export function InvestmentCalculatorComponent() {
     }
     updateCalculationSummary()
     calculateComparisons()
+    setHasCalculated(true)
+    setShowChart(true)
     if (resultRef.current) {
       resultRef.current.scrollIntoView({ behavior: 'smooth' })
     }
@@ -83,6 +90,10 @@ export function InvestmentCalculatorComponent() {
       setResult(parseFloat(compoundInterest.toFixed(2)))
       setTotalInvested(parseFloat(totalInvested.toFixed(2)))
       setInterestGained(parseFloat(interestGained.toFixed(2)))
+      setGrossInterest(parseFloat(interestGained.toFixed(2)))
+      setNetInterest(parseFloat(interestGained.toFixed(2)))
+      setTax(0)
+      setTaxRate(0)
     }
 
     const labels = []
@@ -130,12 +141,19 @@ export function InvestmentCalculatorComponent() {
     }
 
     const totalInvested = parseCurrency(principal) + (monthlyContribution * n)
-    const interestGained = totalAmount - totalInvested
+    const grossInterest = totalAmount - totalInvested
+    const taxRate = Number(time) >= 2 ? 0.15 : 0.175
+    const tax = grossInterest * taxRate
+    const netInterest = grossInterest - tax
 
     if (additionalContribution === 0) {
       setResult(parseFloat(totalAmount.toFixed(2)))
       setTotalInvested(parseFloat(totalInvested.toFixed(2)))
-      setInterestGained(parseFloat(interestGained.toFixed(2)))
+      setGrossInterest(parseFloat(grossInterest.toFixed(2)))
+      setNetInterest(parseFloat(netInterest.toFixed(2)))
+      setTax(parseFloat(tax.toFixed(2)))
+      setTaxRate(taxRate * 100)
+      setInterestGained(parseFloat(netInterest.toFixed(2)))
       setChartData({
         labels,
         datasets: [
@@ -197,6 +215,7 @@ export function InvestmentCalculatorComponent() {
     summary += `Contribuição Mensal: R$ ${contribution}\n`
     if (investmentType === 'cdb') {
       summary += `Percentual do CDI: ${cdbRate}%\n`
+      summary += `Imposto: ${taxRate}%\n`
     }
     setCalculationSummary(summary)
   }
@@ -486,7 +505,7 @@ export function InvestmentCalculatorComponent() {
               <Button
                 onClick={toggleChartVisibility}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={!allFieldsFilled()}
+                disabled={!hasCalculated}
               >
                 {showChart ? 'Ocultar Gráfico' : 'Mostrar Gráfico'}
               </Button>
@@ -506,9 +525,23 @@ export function InvestmentCalculatorComponent() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Rendimento:</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Rendimento Bruto:</p>
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                    R$ {grossInterest?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                {investmentType === 'cdb' && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Imposto:</p>
+                    <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+                      R$ {tax?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({taxRate}%)
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Rendimento Líquido:</p>
                   <p className="text-xl font-bold text-green-600 dark:text-green-400 animate-pulse">
-                    R$ {interestGained?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {netInterest?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 {calculationSummary && (
